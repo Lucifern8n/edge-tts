@@ -7,13 +7,13 @@ app = FastAPI(title="Edge TTS API")
 
 @app.get("/")
 def health():
-    return {"status": "ok", "message": "Edge TTS API running"}
+    return {"status": "ok"}
 
 @app.get("/tts")
 async def tts(
     text: str = Query(...),
     voice: str = Query("en-US-JennyNeural"),
-    style: str = Query("cheerful"),
+    style: str | None = Query(None),
     rate: str = Query("+0%"),
     pitch: str = Query("+0Hz"),
     format: str = Query("mp3")
@@ -21,7 +21,9 @@ async def tts(
     try:
         filename = f"/tmp/{uuid.uuid4()}.{format}"
 
-        ssml = f"""
+        # ✅ USE SSML ONLY WHEN STYLE IS PROVIDED
+        if style:
+            payload = f"""
 <speak>
   <voice name="{voice}">
     <express-as style="{style}">
@@ -32,19 +34,15 @@ async def tts(
   </voice>
 </speak>
 """
+        else:
+            # ✅ DAVISNEURAL WORKS BEST WITH PLAIN TEXT
+            payload = text
 
         communicate = edge_tts.Communicate(
-            text=ssml,
+            text=payload,
             voice=voice
         )
 
         await communicate.save(filename)
 
-        return FileResponse(
-            filename,
-            media_type="audio/mpeg",
-            filename="speech.mp3"
-        )
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return FileRespon
