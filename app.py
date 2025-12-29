@@ -1,54 +1,40 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel
 import edge_tts
 import uuid
+import os
 
 app = FastAPI(title="Edge TTS API")
 
+# ---------- Request Model ----------
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "en-GB-RyanNeural"
+    is_ssml: bool = False
+
+# ---------- Health Check ----------
 @app.get("/")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "service": "edge-tts"}
 
-@app.get("/tts")
-async def tts(
-    text: str = Query(...),
-    voice: str = Query("en-US-JennyNeural"),
-    style: str | None = Query(None),
-    rate: str = Query("+0%"),
-    pitch: str = Query("+0Hz"),
-    format: str = Query("mp3")
-):
+# ---------- TTS Endpoint ----------
+@app.post("/tts")
+async def tts(req: TTSRequest):
     try:
-        filename = f"/tmp/{uuid.uuid4()}.{format}"
+        filename = f"/tmp/{uuid.uuid4()}.mp3"
 
-        # 🔑 AUTO-DETECT SSML
-        is_ssml = text.strip().startswith("<speak>")
-
-        if is_ssml:
-            # Use SSML exactly as provided
-            payload = text
-
-        elif style:
-            # Build SSML only when style is requested
-            payload = f"""
-<speak>
-  <voice name="{voice}">
-    <express-as style="{style}">
-      <prosody rate="{rate}" pitch="{pitch}">
-        {text}
-      </prosody>
-    </express-as>
-  </voice>
-</speak>
-"""
+        # ✅ CORRECT USAGE
+        if req.is_ssml:
+            communicate = edge_tts.Communicate(
+                ssml=req.text,
+                voice=req.voice
+            )
         else:
-            # Plain text (safe for DavisNeural)
-            payload = text
-
-        communicate = edge_tts.Communicate(
-            text=payload,
-            voice=voice
-        )
+            communicate = edge_tts.Communicate(
+                text=req.text,
+                voice=req.voice
+            )
 
         await communicate.save(filename)
 
