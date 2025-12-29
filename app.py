@@ -21,8 +21,15 @@ async def tts(
     try:
         filename = f"/tmp/{uuid.uuid4()}.{format}"
 
-        # Use SSML ONLY if style is provided
-        if style:
+        # 🔑 AUTO-DETECT SSML
+        is_ssml = text.strip().startswith("<speak>")
+
+        if is_ssml:
+            # Use SSML exactly as provided
+            payload = text
+
+        elif style:
+            # Build SSML only when style is requested
             payload = f"""
 <speak>
   <voice name="{voice}">
@@ -35,7 +42,7 @@ async def tts(
 </speak>
 """
         else:
-            # Plain text (required for DavisNeural)
+            # Plain text (safe for DavisNeural)
             payload = text
 
         communicate = edge_tts.Communicate(
