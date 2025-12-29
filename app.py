@@ -21,7 +21,7 @@ async def tts(
     try:
         filename = f"/tmp/{uuid.uuid4()}.{format}"
 
-        # ✅ USE SSML ONLY WHEN STYLE IS PROVIDED
+        # Use SSML ONLY if style is provided
         if style:
             payload = f"""
 <speak>
@@ -35,7 +35,7 @@ async def tts(
 </speak>
 """
         else:
-            # ✅ DAVISNEURAL WORKS BEST WITH PLAIN TEXT
+            # Plain text (required for DavisNeural)
             payload = text
 
         communicate = edge_tts.Communicate(
@@ -45,4 +45,14 @@ async def tts(
 
         await communicate.save(filename)
 
-        return FileRespon
+        return FileResponse(
+            filename,
+            media_type="audio/mpeg",
+            filename="speech.mp3"
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
