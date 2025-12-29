@@ -6,45 +6,35 @@ import uuid
 
 app = FastAPI(title="Edge TTS API")
 
-# ---------- Request Model ----------
 class TTSRequest(BaseModel):
     text: str
     voice: str = "en-GB-RyanNeural"
-    rate: str | None = None     # e.g. "-10%"
-    pitch: str | None = None    # e.g. "-3Hz"
-    style: str | None = None    # e.g. "chat"
-    is_ssml: bool = False       # set true if text already contains <speak>
+    rate: str | None = None
+    pitch: str | None = None
+    style: str | None = None
+    is_ssml: bool = False
 
-# ---------- Health ----------
-@app.get("/")
-def health():
-    return {"status": "ok"}
-
-# ---------- TTS ----------
 @app.post("/tts")
 async def tts(req: TTSRequest):
     try:
         filename = f"/tmp/{uuid.uuid4()}.mp3"
 
         # ---------- Build SSML if needed ----------
-        if req.is_ssml:
-            ssml = req.text
-
-        elif req.rate or req.pitch or req.style:
-            prosody_attrs = []
+        if req.is_ssml or req.rate or req.pitch or req.style:
+            prosody = []
             if req.rate:
-                prosody_attrs.append(f'rate="{req.rate}"')
+                prosody.append(f'rate="{req.rate}"')
             if req.pitch:
-                prosody_attrs.append(f'pitch="{req.pitch}"')
+                prosody.append(f'pitch="{req.pitch}"')
 
-            prosody_attr_str = " ".join(prosody_attrs)
+            prosody_str = " ".join(prosody)
 
             if req.style:
                 ssml = f"""
 <speak>
   <voice name="{req.voice}">
     <express-as style="{req.style}">
-      <prosody {prosody_attr_str}>
+      <prosody {prosody_str}>
         {req.text}
       </prosody>
     </express-as>
@@ -55,27 +45,23 @@ async def tts(req: TTSRequest):
                 ssml = f"""
 <speak>
   <voice name="{req.voice}">
-    <prosody {prosody_attr_str}>
+    <prosody {prosody_str}>
       {req.text}
     </prosody>
   </voice>
 </speak>
 """
-
+            text_input = ssml
+            is_ssml = True
         else:
-            ssml = None
+            text_input = req.text
+            is_ssml = False
 
-        # ---------- Call Edge-TTS ----------
-        if ssml:
-            communicate = edge_tts.Communicate(
-                ssml=ssml,
-                voice=req.voice
-            )
-        else:
-            communicate = edge_tts.Communicate(
-                text=req.text,
-                voice=req.voice
-            )
+        communicate = edge_tts.Communicate(
+            text=text_input,
+            voice=req.voice,
+            is_ssml=is_ssml   # ✅ THIS IS THE CORRECT FLAG
+        )
 
         await communicate.save(filename)
 
