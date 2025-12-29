@@ -30,3 +30,7 @@ async def tts(req: TTSRequest):
     except Exception as e:
         # This will help us see exactly what the library didn't like
         return JSONResponse(status_code=400, content={"error": str(e)})
+        
+@app.get("/ping")
+async def ping():
+    return {"status": "ok"}
