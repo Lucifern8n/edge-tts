@@ -2,7 +2,6 @@ from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 import edge_tts
 import uuid
-import os
 
 app = FastAPI(title="Edge TTS API")
 
@@ -12,7 +11,7 @@ def health():
 
 @app.get("/tts")
 async def tts(
-    text: str = Query(..., description="Text or SSML to convert to speech"),
+    text: str = Query(...),
     voice: str = Query("en-US-JennyNeural"),
     style: str = Query("cheerful"),
     rate: str = Query("+0%"),
@@ -22,23 +21,21 @@ async def tts(
     try:
         filename = f"/tmp/{uuid.uuid4()}.{format}"
 
-        # Build SSML (this is where Identity / Tone / Emotion live)
         ssml = f"""
-        <speak>
-          <voice name="{voice}">
-            <express-as style="{style}">
-              <prosody rate="{rate}" pitch="{pitch}">
-                {text}
-              </prosody>
-            </express-as>
-          </voice>
-        </speak>
-        """
+<speak>
+  <voice name="{voice}">
+    <express-as style="{style}">
+      <prosody rate="{rate}" pitch="{pitch}">
+        {text}
+      </prosody>
+    </express-as>
+  </voice>
+</speak>
+"""
 
         communicate = edge_tts.Communicate(
             text=ssml,
-            voice=voice,
-            is_ssml=True
+            voice=voice
         )
 
         await communicate.save(filename)
@@ -46,11 +43,8 @@ async def tts(
         return FileResponse(
             filename,
             media_type="audio/mpeg",
-            filename=f"speech.{format}"
+            filename="speech.mp3"
         )
 
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
+        return JSONResponse(status_code=500, content={"error": str(e)})
