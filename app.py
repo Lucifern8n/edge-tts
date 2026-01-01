@@ -34,3 +34,13 @@ async def tts(req: TTSRequest):
 @app.get("/ping")
 async def ping():
     return {"status": "ok"}
+
+@app.get("/voices")
+async def list_voices():
+    try:
+        voices = await edge_tts.list_voices()
+        # Filter for Hindi voices only
+        hindi_voices = [v for v in voices if "hi-IN" in v["Locale"]]
+        return hindi_voices
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
